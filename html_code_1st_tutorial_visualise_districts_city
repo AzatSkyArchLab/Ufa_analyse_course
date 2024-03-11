@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Ufa analyse course example</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100&display=swap" rel="stylesheet"> 
+<style>
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+.mapboxgl-popup {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 50; /* Adjusted for common weights */
+    color: black;
+}
+.toggle-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 14px;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 400;
+    background-color: white;
+    padding: 8px 15px;
+    border: 1px solid #000000;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<button class="toggle-button" id="toggleLayer">Районы города Уфа</button>
+
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoiYXphdHNhIiwiYSI6ImNrbWl3dGhxNTBscjcydms1MTloMWl3OTMifQ.qz7WJvUSNZhNL4Co7sL_UA';
+const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: [55.97819,54.73896],
+    zoom: 10
+});
+
+map.on('load', () => {
+    map.addSource('states', {
+        'type': 'geojson',
+        'data': 'https://raw.githubusercontent.com/AzatSkyArchLab/Ufa_analyse_course/main/boundary_administrative_all_ufa.geojson'
+    });
+
+    map.addLayer({
+        'id': 'states-layer',
+        'type': 'fill',
+        'source': 'states',
+        'paint': {
+            'fill-color': 'rgba(200, 100, 240, 0.4)',
+            'fill-outline-color': 'rgba(60, 60, 60, 1)'
+        }
+    });
+
+    // Overlay layer for highlighting clicked polygon
+    map.addLayer({
+        'id': 'highlight-layer',
+        'type': 'fill',
+        'source': 'states',
+        'paint': {
+            'fill-color': '#B4F63D', // Green color
+            'fill-opacity': 0.5, // 50% opacity
+            'fill-outline-color': 'rgba(60, 60, 60, 1)'
+        },
+        'filter': ['==', ['get', 'osm_id'], '']
+    });
+
+    map.on('click', 'states-layer', function(e) {
+        if (e.features.length > 0) {
+            const feature = e.features[0];
+            const name = feature.properties.name;
+
+            // Ensure we don't duplicate "район" in the URL
+            const wikiName = encodeURIComponent(name + "_(Уфа)");
+            const wikiUrl = `https://ru.wikipedia.org/wiki/${wikiName}`;
+
+            const popup = new mapboxgl.Popup()
+                .setLngLat(e.lngLat)
+                .setHTML(`<h4 style="font-family: 'Roboto', sans-serif; font-weight: 400; color: black;">${name}</h4><a href="${wikiUrl}" target="_blank">Читать подробнее на Wikipedia</a>`)
+                .addTo(map)
+                .on('close', () => {
+                    map.setFilter('highlight-layer', ['==', ['get', 'osm_id'], '']);
+                });
+
+            const osmId = feature.properties.osm_id;
+            map.setFilter('highlight-layer', ['==', ['get', 'osm_id'], osmId]);
+        }
+    });
+
+    // Change cursor to pointer on hover
+    map.on('mouseenter', 'states-layer', () => {
+        map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', 'states-layer', () => {
+        map.getCanvas().style.cursor = '';
+    });
+});
+
+let layerVisible = true;
+document.getElementById('toggleLayer').addEventListener('click', function() {
+    if(layerVisible) {
+        map.setLayoutProperty('states-layer', 'visibility', 'none');
+        map.setLayoutProperty('highlight-layer', 'visibility', 'none');
+        this.style.backgroundColor = '#0000FF';
+        this.style.color = '#FFFFFF';
+        layerVisible = false;
+    } else {
+        map.setLayoutProperty('states-layer', 'visibility', 'visible');
+        map.setLayoutProperty('highlight-layer', 'visibility', 'visible');
+        this.style.backgroundColor = '#FFFFFF';
+        this.style.color = '#000000';
+        layerVisible = true;
+    }
+});
+
+map.on('mouseenter', 'states-layer', () => {
+    map.getCanvas().style.cursor = 'pointer';
+});
+
+map.on('mouseleave', 'states-layer', () => {
+    map.getCanvas().style.cursor = '';
+    
+});
+</script>
+
+</body>
+</html>
